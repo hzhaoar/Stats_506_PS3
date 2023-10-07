@@ -1,0 +1,389 @@
+---
+title: "Stats_506_PS3"
+format: pdf
+editor: visual
+---
+
+## Problem 1
+
+### Task (a)
+
+```{r, eval=FALSE}
+// Task A
+
+// Convert DEMO_D.xpt into DEMO_D.dta
+import sasxport5 "C:/Users/hzhaoar/Downloads/DEMO_D.xpt" 
+save "C:/Users/hzhaoar/Downloads/DEMO_D.dta", replace
+
+// Read VIX_D.xpt
+import sasxport5 "C:/Users/hzhaoar/Downloads/VIX_D.xpt" 
+
+// Merge two datasets 
+// Master: VIX_D.xpt, using: DEMO_D.dta
+merge 1:1 seqn using "C:/Users/hzhaoar/Downloads/DEMO_D.dta"
+
+// Drop records which are not matched
+drop if _merge != 3
+
+// Print total sample size
+count
+```
+
+The result is 6980, which means our merging is successful. 
+
+### Task (b)
+
+```{r, eval=FALSE}
+// Task B
+
+// Create a variable to group records using their age
+
+egen age_group = cut(ridageyr), at(0(10)100) label
+gen wear_glasses_contact = (viq220 == 1)
+
+// Create a table of the results
+tabstat wear_glasses_contact, by(age_group) stat(mean) format(%5.2f)
+```
+
+Here is the table generated. 
+
+```{r, eval=FALSE}
+
+age_group |      Mean
+----------+----------
+      10- |      0.30
+      20- |      0.30
+      30- |      0.33
+      40- |      0.35
+      50- |      0.53
+      60- |      0.59
+      70- |      0.64
+      80- |      0.58
+----------+----------
+    Total |      0.40
+---------------------
+
+```
+
+### Task (c)
+
+```{r, eval=FALSE}
+// Task C
+
+
+// Constuct the table
+matrix myMatrix = J(3, 7, .)
+matrix colnames myMatrix = odds_cons odds_age odds_gender odds_PIR sample_size pseudo_R^2 AIC
+matrix rownames myMatrix = mod1 mod2 mod3
+
+// Fit model 1
+logit wear_glasses_contact ridageyr
+
+// Compute estimated odds ratios for model 1
+matrix myMatrix[1, 1] = exp(_b[_cons])
+matrix myMatrix[1, 2] = exp(_b[ridageyr])
+
+// Access sample size and R-squared 
+matrix myMatrix[1, 5] = e(N)
+matrix myMatrix[1, 6] = e(r2_p)
+
+// Access AIC
+estat ic
+matrix myMatrix[1, 7] = r(S)[1,5]
+
+
+// Fit model 2
+logit wear_glasses_contact ridageyr i.ridreth1 i.dmdhrgnd
+
+// Compute estimated odds ratios for model 1
+matrix myMatrix[2, 1] = exp(_b[_cons])
+matrix myMatrix[2, 2] = exp(_b[ridageyr])
+//matrix myMatrix[2, 3] = exp(_b[ridreth1_2])
+matrix myMatrix[2, 3] = exp(_b[2.dmdhrgnd])
+
+// Access sample size and R-squared 
+matrix myMatrix[2, 5] = e(N)
+matrix myMatrix[2, 6] = e(r2_p)
+
+// Access AIC
+estat ic
+matrix myMatrix[2, 7] = r(S)[1,5]
+
+
+// Fit model 3
+logit wear_glasses_contact ridageyr i.ridreth1 i.dmdhrgnd indfmpir
+
+// Compute estimated odds ratios for model 1
+matrix myMatrix[3, 1] = exp(_b[_cons])
+matrix myMatrix[3, 2] = exp(_b[ridageyr])
+//matrix myMatrix[2, 3] = exp(_b[ridreth1_2])
+matrix myMatrix[3, 3] = exp(_b[2.dmdhrgnd])
+matrix myMatrix[3, 4] = exp(_b[indfmpir])
+
+// Access sample size and R-squared 
+matrix myMatrix[3, 5] = e(N)
+matrix myMatrix[3, 6] = e(r2_p)
+
+// Access AIC
+estat ic
+matrix myMatrix[3, 7] = r(S)[1,5]
+
+matrix list myMatrix
+```
+
+Here is the table generated.
+
+```{r, eval=FALSE}
+myMatrix[3,7]
+        odds_cons     odds_age  odds_gender     odds_PIR  
+mod1     .2700278    1.0231596            .            .         
+mod2    .19399783    1.0203171    1.1784547            .         
+mod3    .15813978    1.0201386    1.2195171    1.1308174         
+
+        sample_size   pseudo_R^2          AIC
+mod1           6980    .04367243    8967.5742
+mod2           6980    .05671991    8855.2813
+mod3           6638    .05942427    8419.8002
+```
+
+### Task (d)
+
+By the table in the last question, we can find for women, the odd is $1.2195171$. And for men, the odd is $e^0=1$. Clearly, the odds for two genders are different.
+
+To test whether the proportion of wearers of glasses/contact lenses for distance vision differs between men and women, we can conduct Chi-Squared Test for Independence. I found relative information in the following URL: https://www.jmp.com/en_us/statistics-knowledge-portal/chi-square-test/chi-square-test-of-independence.html#:~:text=What%20is%20the%20Chi%2Dsquare,to%20be%20related%20or%20not.
+
+Our hypothesis is 
+
+$H_0:$There is no relationship between gender and wearing glasses.
+
+$H_1:$There is a relationship between gender and wearing glasses.
+
+Then, we can use `stata` to find the p-value.
+
+```{r, eval=FALSE}
+// Task (d)
+tabulate wear_glasses_contact dmdhrgnd, chi2
+```
+
+Here is the result
+
+```{r, eval=FALSE}
+wear_glass | HH Ref Person Gender
+es_contact |         1          2 |     Total
+-----------+----------------------+----------
+         0 |     2,377      1,838 |     4,215 
+         1 |     1,492      1,273 |     2,765 
+-----------+----------------------+----------
+     Total |     3,869      3,111 |     6,980 
+
+          Pearson chi2(1) =   4.0027   Pr = 0.045
+
+```
+
+We can see the p-value is $0.045$. Then, if we test at significance level $\alpha =0.05$, then we should reject $H_0$. And our conclusion is that there is a relationship between gender and wearing glasses.
+
+## Problem 2
+
+```{r}
+rm(list = ls())
+```
+
+
+```{r,echo=FALSE}
+library(RSQLite)
+```
+
+```{r}
+# Load data
+sakila <- dbConnect(RSQLite::SQLite(), "./sakila_master.db")
+```
+
+### Task (a)
+
+```{r}
+dbGetQuery(sakila, "
+SELECT l.name, COUNT(*) AS language_count
+  FROM film AS f
+  JOIN language AS l ON f.language_id = l.language_id
+ WHERE l.name <> 'English'
+ GROUP BY l.name
+ ORDER BY language_count DESC
+ LIMIT 1
+")
+```
+
+We can see there are no matches. And we can check whether all movies are in English.
+
+```{r}
+dbGetQuery(sakila, "
+SELECT l.name, COUNT(*) AS language_count
+  FROM film AS f
+  JOIN language AS l ON f.language_id = l.language_id
+ GROUP BY l.name
+ ORDER BY language_count DESC
+")
+```
+So, all movies are in English.
+
+### Task (b)
+
+#### Approach 1
+
+```{r}
+genre <- dbGetQuery(sakila, "
+SELECT c.name
+  FROM film_category fc
+  JOIN category AS c ON fc.category_id = c.category_id
+")
+num_movie <- max(table(genre))
+name_max <- names(table(genre)[which.max((table(genre)))])
+cat(name_max, ":", num_movie, "times")
+```
+
+#### Approach 2
+
+```{r}
+dbGetQuery(sakila, "
+SELECT c.name, COUNT(fc.film_id) AS count
+  FROM film_category fc
+  JOIN category AS c ON fc.category_id = c.category_id
+ GROUP BY c.name
+ ORDER BY count DESC
+ LIMIT 1
+")
+```
+
+We can see that we have obtained the same result using two approaches. 
+
+### Task (c)
+
+#### Approach 1
+
+```{r}
+customers <- dbGetQuery(sakila, "
+SELECT c.country
+  FROM country AS c
+  JOIN city AS ci ON c.country_id = ci.country_id
+  JOIN address AS ad ON ci.city_id = ad.city_id
+  JOIN customer AS cust ON ad.address_id = cust.address_id
+")
+
+names(table(customers)[which(table(customers)==9)])
+```
+
+#### Approach 2
+
+```{r}
+dbGetQuery(sakila, "
+SELECT c.country, COUNT(cust.customer_id) AS count
+  FROM country AS c
+  JOIN city AS ci ON c.country_id = ci.country_id
+  JOIN address AS ad ON ci.city_id = ad.city_id
+  JOIN customer AS cust ON ad.address_id = cust.address_id
+ GROUP BY c.country
+HAVING COUNT(cust.customer_id) = 9
+ ORDER BY -count
+")
+```
+
+We can see that we have obtained the same result using two approaches.
+
+## Problem 3
+
+```{r, echo=FALSE}
+rm(list = ls())
+```
+
+```{r}
+# Load data
+records <- read.csv("./us-500/us-500.csv")
+```
+
+### Task (a)
+
+```{r}
+total <- dim(records)[1]
+
+num_matched_a <- length(grep("\\.net$",records$email))
+
+# dim(records)[1] is the number of observations in the dataset,
+# which is 500 in our case
+print(num_matched_a/total)
+```
+
+### Task (b)
+
+Here, to get a non-trivial result, we will not include `@`, `.`, and white space in our matching.
+
+```{r}
+# a-z means not a lowercase letter
+# A-Z means not a uppercase letter
+# \\d means not a digit
+# \\s means not a space
+# \\. means not a period
+# @ is also not included
+num_matched_b <- length(grep("[^a-zA-Z\\d\\s\\.@]", records$email))
+print(num_matched_b/total)
+```
+
+### Task (c)
+
+```{r}
+i <- 1
+area1 <- vector(length = total)
+for (row in records$phone1){
+  area1[i] <- sub("(\\d+)-.*", "\\1", row)
+  i <- i+1
+}
+
+i <- 1
+area2 <- vector(length = total)
+for (row in records$phone2){
+  area2[i] <- sub("(\\d+)-.*", "\\1", row)
+  i <- i+1
+}
+M1 <- sort(table(area1), decreasing = TRUE)[1]
+M2 <- sort(table(area2), decreasing = TRUE)[1]
+
+cat(names(M1), ": ", M1, "\n")
+cat(names(M2), ": ", M2, "\n")
+```
+
+So, "973" is the most common area code amongst all phone numbers.
+
+### Task (d)
+
+```{r}
+library(stringr)
+```
+
+```{r}
+pattern <- "#(\\d+)"
+matches <- str_match(records$address, pattern)
+digits <- matches[,2]
+log_digits <- log(as.numeric(digits))
+hist(log_digits, main = "Histogram of Log Apartment Numbers", xlab = "Log Apartment Numbers")
+```
+
+### Task (e)
+
+```{r}
+first_digits <- as.numeric(substr(digits[which(digits != "NA")], 1, 1))
+hist(first_digits, main = "Histogram of First Digits", 
+     breaks = seq(min(first_digits) - 0.5, max(first_digits) + 0.5, by = 1),  
+     xlab = "First digits", xlim = c(0, 10))
+```
+
+We can see that this shape does not follow Benford’s law. So, the apartment numbers may NOT pass as real data.
+
+### Task (f)
+
+```{r}
+streets_num <- (str_match(records$address, "^\\d+"))
+last_digits <- as.numeric(streets_num[which(streets_num != "NA")]) %% 10
+hist(last_digits, main = "Histogram of Last Digits", 
+     breaks = seq(min(last_digits) - 0.5, max(last_digits) + 0.5, by = 1),  
+     xlab = "Last digits", xlim = c(-1, 10))
+```
+
+Since Benford’s law only applies to the first digits, we are not surprised to observe that the last digits do not follow Benford’s law. 
