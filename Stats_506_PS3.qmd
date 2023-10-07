@@ -4,6 +4,8 @@ format: pdf
 editor: visual
 ---
 
+My Git-Hub link: https://github.com/hzhaoar/Stats_506_PS3
+
 ## Problem 1
 
 ### Task (a)
